@@ -1,0 +1,21 @@
+##################################################
+##########    가상 환경    ########################
+
+    # 가상 환경 생성
+python -m venv venv
+
+    # 가상 환경 활성화
+venv\Scripts\activate.bat
+
+    # 가상 환경 비활성화
+deactivate
+
+##################################################
+##########    패키지    ###########################
+
+    # 패키지 목록 생성
+python -m pip freeze > requirements.txt
+
+    # 패키지 목록 설치
+python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-use.txt
