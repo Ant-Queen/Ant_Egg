@@ -1,0 +1,8 @@
+    # 가상 환경 생성
+python -m venv venv
+
+    # 패키지 목록 생성
+python -m pip freeze > requirements.txt
+
+    # 패키지 목록 설치
+python -m pip install -r requirements.txt
