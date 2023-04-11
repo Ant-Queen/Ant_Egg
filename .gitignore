@@ -1,3 +1,11 @@
-/log/
-/venv/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# log파일 directory
+log/
+
+# 가상환경 directory
+venv/
+
+# 환경변수 추가용 파일 / load_dotenv()
 .env
