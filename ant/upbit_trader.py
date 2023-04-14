@@ -1,4 +1,4 @@
-"""업비트 거래소를 통한 거래 처리"""
+"""업비트 거래소를 통한 거래 요청 및 계좌 조회 요청을 처리하는 UpbitTrader 클래스"""
 
 import os
 import copy
@@ -28,12 +28,19 @@ class UpbitTrader(Trader):
     """
 
     RESULT_CHECKING_INTERVAL = 5
-    MARKET = "KRW-BTC"
-    MARKET_CURRENCY = "BTC"
     ISO_DATEFORMAT = "%Y-%m-%dT%H:%M:%S"
-    COMMISSION_RATIO = 0.0005
+    AVAILABLE_CURRENCY = {
+        "BTC": ("KRW-BTC", "BTC"),
+        "ETH": ("KRW-ETH", "ETH"),
+        "DOGE": ("KRW-DOGE", "DOGE"),
+        "XRP": ("KRW-XRP", "XRP"),
+    }
+    NAME = "Upbit"
 
-    def __init__(self, budget=50000, opt_mode=True):
+    def __init__(self, budget=50000, currency="BTC", commission_ratio=0.0005, opt_mode=True):
+        if currency not in self.AVAILABLE_CURRENCY:
+            raise UserWarning(f"not supported currency: {currency}")
+
         self.logger = LogManager.get_logger(__class__.__name__)
         self.worker = Worker("UpbitTrader-Worker")
         self.worker.start()
@@ -45,7 +52,10 @@ class UpbitTrader(Trader):
         self.is_opt_mode = opt_mode
         self.asset = (0, 0)  # avr_price, amount
         self.balance = budget
-        self.name = "Upbit"
+        self.commission_ratio = commission_ratio
+        currency_info = self.AVAILABLE_CURRENCY[currency]
+        self.market = currency_info[0]
+        self.market_currency = currency_info[1]
 
     @staticmethod
     def _create_limit_order_query(market, is_buy, price, volume):
@@ -130,11 +140,11 @@ class UpbitTrader(Trader):
         trade_info = self.get_trade_tick()
         result = {
             "balance": self.balance,
-            "asset": {self.MARKET_CURRENCY: self.asset},
+            "asset": {self.market_currency: self.asset},
             "quote": {},
             "date_time": datetime.now().strftime(self.ISO_DATEFORMAT),
         }
-        result["quote"][self.MARKET_CURRENCY] = float(trade_info[0]["trade_price"])
+        result["quote"][self.market_currency] = float(trade_info[0]["trade_price"])
         self.logger.debug(f"account info {result}")
         return result
 
@@ -176,7 +186,7 @@ class UpbitTrader(Trader):
 
     def get_trade_tick(self):
         """최근 거래 정보 조회"""
-        querystring = {"market": self.MARKET, "count": "1"}
+        querystring = {"market": self.market, "count": "1"}
         return self._request_get(self.SERVER_URL + "/v1/trades/ticks", params=querystring)
 
     def _execute_order(self, task):
@@ -186,21 +196,24 @@ class UpbitTrader(Trader):
             return
 
         if request["price"] == 0:
-            self.logger.warning("invalid price request. market price is not supported now")
+            self.logger.warning("[REJECT] market price is not supported now")
             return
 
         is_buy = request["type"] == "buy"
         if is_buy and float(request["price"]) * float(request["amount"]) > self.balance:
-            self.logger.warning("invalid price request. balance is too small!")
+            request_price = float(request["price"]) * float(request["amount"])
+            self.logger.warning(f"[REJECT] balance is too small! {request_price} > {self.balance}")
             task["callback"]("error!")
             return
 
         if is_buy is False and float(request["amount"]) > self.asset[1]:
-            self.logger.warning("invalid price request. rest asset amount is less than request!")
+            self.logger.warning(
+                f"[REJECT] invalid amount {float(request['amount'])} > {self.asset[1]}"
+            )
             task["callback"]("error!")
             return
 
-        response = self._send_order(self.MARKET, is_buy, request["price"], request["amount"])
+        response = self._send_order(self.market, is_buy, request["price"], request["amount"])
         if response is None:
             task["callback"]("error!")
             return
@@ -277,7 +290,7 @@ class UpbitTrader(Trader):
 
     def _call_callback(self, callback, result):
         result_value = float(result["price"]) * float(result["amount"])
-        fee = result_value * self.COMMISSION_RATIO
+        fee = result_value * self.commission_ratio
 
         if result["state"] == "done" and result["type"] == "buy":
             old_value = self.asset[0] * self.asset[1]
@@ -287,7 +300,7 @@ class UpbitTrader(Trader):
             if new_amount == 0:
                 avr_price = 0
             else:
-                avr_price = new_value / new_amount
+                avr_price = round(new_value / new_amount, 6)
             self.asset = (avr_price, new_amount)
             self.balance -= round(result_value + fee)
         elif result["state"] == "done" and result["type"] == "sell":
@@ -370,8 +383,8 @@ class UpbitTrader(Trader):
             )
             response.raise_for_status()
             result = response.json()
-        except ValueError:
-            self.logger.error("Invalid data from server")
+        except ValueError as err:
+            self.logger.error(f"Invalid data from server: {err}")
             return None
         except requests.exceptions.HTTPError as msg:
             self.logger.error(msg)
@@ -459,8 +472,8 @@ class UpbitTrader(Trader):
                 response = requests.get(url, headers=headers)
             response.raise_for_status()
             result = response.json()
-        except ValueError:
-            self.logger.error("Invalid data from server")
+        except ValueError as err:
+            self.logger.error(f"Invalid data from server: {err}")
             return None
         except requests.exceptions.HTTPError as msg:
             self.logger.error(msg)
@@ -528,8 +541,8 @@ class UpbitTrader(Trader):
             )
             response.raise_for_status()
             result = response.json()
-        except ValueError:
-            self.logger.error("Invalid data from server")
+        except ValueError as err:
+            self.logger.error(f"Invalid data from server: {err}")
             return None
         except requests.exceptions.HTTPError as msg:
             self.logger.error(msg)
