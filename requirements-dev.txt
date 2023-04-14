@@ -1,4 +1,4 @@
 requests         # HTTP client library
 pyjwt            # JSON Web Token
-python-dotenv    # 환경 변수 추가 / .env 파일 / load_dotenv() / os.environ
+python-dotenv    # .env / load_dotenv() / os.environ
 ipykernel        # jupyter notebook (for VSCode)
