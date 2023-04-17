@@ -47,7 +47,7 @@ class Worker:
                 self.task_queue.task_done()
                 if task is None:
                     self.logger.debug(
-                        f"Worker[{self.name}:{threading.get_ident()}] Termanited .........."
+                        f"Worker[{self.name}:{threading.get_ident()}] Terminated .........."
                     )
                     if self.on_terminated is not None:
                         self.on_terminated()
