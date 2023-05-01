@@ -20,6 +20,9 @@ python -m pip freeze > requirements.txt
 python -m pip install -r requirements-dev.txt
 python -m pip install -r requirements-use.txt
 
+    # setup.py 패키지 설치
+python setup.py install
+
 ##################################################
 ##########    깃 & 깃허브    ###########################
 
