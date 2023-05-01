@@ -19,3 +19,12 @@ python -m pip freeze > requirements.txt
     # 패키지 목록 설치
 python -m pip install -r requirements-dev.txt
 python -m pip install -r requirements-use.txt
+
+##################################################
+##########    깃 & 깃허브    ###########################
+
+    # 바로 이전 커밋으로 되돌리기
+$ git reset --hard HEAD^
+
+    # 강제로 푸쉬하기 (깃허브)
+$ git push -f origin master
